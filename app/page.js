@@ -260,12 +260,7 @@ function EventCard({ event }) {
   const hasLink = Boolean(event.link)
   const locations = Array.isArray(event.location) ? event.location.filter(Boolean) : []
 
-  const mailtoHref =
-    `mailto:admin@networkforimpact.in` +
-    `?subject=${encodeURIComponent(`Correction: ${event.title}`)}` +
-    `&body=${encodeURIComponent(
-      `Event: ${event.title}\nEvent date: ${event.start_date}\n\nSuggested correction:\n`
-    )}`
+  const correctionHref = `/suggest-correction?event_id=${encodeURIComponent(event.id)}`
 
   return (
     <li>
@@ -349,7 +344,7 @@ function EventCard({ event }) {
               </a>
             )}
             <a
-              href={mailtoHref}
+              href={correctionHref}
               className="text-[12px] text-slate-400 hover:text-slate-700 hover:underline"
             >
               Suggest correction
@@ -374,7 +369,7 @@ function EventCard({ event }) {
             <span />
           )}
           <a
-            href={mailtoHref}
+            href={correctionHref}
             className="text-[11.5px] text-slate-400 hover:text-slate-700 hover:underline"
           >
             Suggest correction
