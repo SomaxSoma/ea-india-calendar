@@ -40,6 +40,7 @@ export async function POST(request) {
       location: location,
       type: body.type || 'meetup',
       registration_close: null,
+      status: 'pending',
       updated_at: new Date().toISOString()
     }
 
@@ -47,7 +48,7 @@ export async function POST(request) {
 
     if (error) throw error
 
-    return Response.json({ success: true })
+    return Response.json({ success: true, message: 'Event submitted! It will appear after review.' })
 
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 })

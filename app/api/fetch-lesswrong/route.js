@@ -53,6 +53,7 @@ export async function GET() {
         location: location,
         type: 'meetup',
         registration_close: null,
+        status: 'approved',
         updated_at: new Date().toISOString()
       }
     })

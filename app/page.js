@@ -62,6 +62,7 @@ export default function EventsPage() {
       const { data, error } = await supabase
         .from('events')
         .select('*')
+        .eq('status', 'approved')
         .gte('start_date', todayISO)
         .order('start_date', { ascending: true })
       if (cancelled) return
@@ -259,96 +260,127 @@ function EventCard({ event }) {
   const hasLink = Boolean(event.link)
   const locations = Array.isArray(event.location) ? event.location.filter(Boolean) : []
 
-  const body = (
-    <article className="group relative grid grid-cols-[auto_1fr] sm:grid-cols-[88px_1fr_auto] gap-x-5 sm:gap-x-7 gap-y-3 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200">
-      {/* Date block */}
-      <div className="flex sm:flex-col items-baseline sm:items-start gap-2 sm:gap-0 sm:pr-2 sm:border-r sm:border-slate-100">
-        <div className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: TEAL }}>
-          {weekdayFmt.format(start)}
-        </div>
-        <div className="text-slate-900 text-3xl sm:text-4xl font-bold leading-none tabular-nums">
-          {dayNumFmt.format(start)}
-        </div>
-        <div className="text-[11px] font-semibold tracking-wider uppercase text-slate-500 sm:mt-1">
-          {dayMonFmt.format(start)}
-        </div>
-      </div>
+  const mailtoHref =
+    `mailto:admin@networkforimpact.in` +
+    `?subject=${encodeURIComponent(`Correction: ${event.title}`)}` +
+    `&body=${encodeURIComponent(
+      `Event: ${event.title}\nEvent date: ${event.start_date}\n\nSuggested correction:\n`
+    )}`
 
-      {/* Main */}
-      <div className="col-span-2 sm:col-span-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap mb-2">
-          <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border ${type.chipBg} ${type.chipText} ${type.chipBorder}`}>
-            {type.label}
-          </span>
-          <span className="text-[12px] text-slate-500">
-            {formatRange(event.start_date, event.end_date)}
-          </span>
-        </div>
-
-        <h3 className="text-slate-900 text-lg sm:text-xl font-semibold leading-snug tracking-tight group-hover:text-teal-700 transition-colors">
-          {event.title}
-        </h3>
-
-        {event.description && (
-          <p className="mt-2 text-slate-600 text-[14.5px] leading-relaxed line-clamp-3">
-            {event.description}
-          </p>
-        )}
-
-        {(locations.length > 0 || event.registration_close) && (
-          <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-2">
-            {locations.map((loc, i) => (
-              <span
-                key={`${loc}-${i}`}
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11.5px] font-medium"
-              >
-                {loc}
-              </span>
-            ))}
-            {event.registration_close && (
-              <span className="text-[11.5px] text-slate-500 pl-1">
-                Reg. closes {shortFmt.format(new Date(event.registration_close))}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Action (desktop) */}
-      <div className="hidden sm:flex items-start justify-end col-start-3 row-start-1">
-        {hasLink && (
-          <span
-            className="text-sm font-medium inline-flex items-center gap-1.5 group-hover:gap-2 transition-all"
-            style={{ color: TEAL }}
-          >
-            View Event
-            <span className="inline-block transition-transform group-hover:translate-x-0.5">→</span>
-          </span>
-        )}
-      </div>
-
-      {/* Action (mobile) */}
-      {hasLink && (
-        <div className="col-span-2 sm:hidden">
-          <span className="text-sm font-medium inline-flex items-center gap-1.5" style={{ color: TEAL }}>
-            View Event <span>→</span>
-          </span>
-        </div>
-      )}
-    </article>
-  )
-
-  if (!hasLink) return <li>{body}</li>
   return (
     <li>
-      <a
-        href={event.link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 rounded-2xl"
-      >
-        {body}
-      </a>
+      <article className="group relative grid grid-cols-[auto_1fr] sm:grid-cols-[88px_1fr_auto] gap-x-5 sm:gap-x-7 gap-y-3 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200">
+        {/* Date block */}
+        <div className="flex sm:flex-col items-baseline sm:items-start gap-2 sm:gap-0 sm:pr-2 sm:border-r sm:border-slate-100">
+          <div className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: TEAL }}>
+            {weekdayFmt.format(start)}
+          </div>
+          <div className="text-slate-900 text-3xl sm:text-4xl font-bold leading-none tabular-nums">
+            {dayNumFmt.format(start)}
+          </div>
+          <div className="text-[11px] font-semibold tracking-wider uppercase text-slate-500 sm:mt-1">
+            {dayMonFmt.format(start)}
+          </div>
+        </div>
+
+        {/* Main */}
+        <div className="col-span-2 sm:col-span-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border ${type.chipBg} ${type.chipText} ${type.chipBorder}`}>
+              {type.label}
+            </span>
+            <span className="text-[12px] text-slate-500">
+              {formatRange(event.start_date, event.end_date)}
+            </span>
+          </div>
+
+          {hasLink ? (
+            <a
+              href={event.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 rounded-sm"
+            >
+              <h3 className="text-slate-900 text-lg sm:text-xl font-semibold leading-snug tracking-tight group-hover:text-teal-700 transition-colors">
+                {event.title}
+              </h3>
+            </a>
+          ) : (
+            <h3 className="text-slate-900 text-lg sm:text-xl font-semibold leading-snug tracking-tight">
+              {event.title}
+            </h3>
+          )}
+
+          {event.description && (
+            <p className="mt-2 text-slate-600 text-[14.5px] leading-relaxed line-clamp-3">
+              {event.description}
+            </p>
+          )}
+
+          {(locations.length > 0 || event.registration_close) && (
+            <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-2">
+              {locations.map((loc, i) => (
+                <span
+                  key={`${loc}-${i}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11.5px] font-medium"
+                >
+                  {loc}
+                </span>
+              ))}
+              {event.registration_close && (
+                <span className="text-[11.5px] text-slate-500 pl-1">
+                  Reg. closes {shortFmt.format(new Date(event.registration_close))}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Footer actions (mobile inline, desktop hidden) */}
+          <div className="mt-4 flex items-center gap-4 sm:hidden">
+            {hasLink && (
+              <a
+                href={event.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium inline-flex items-center gap-1.5"
+                style={{ color: TEAL }}
+              >
+                View Event <span>→</span>
+              </a>
+            )}
+            <a
+              href={mailtoHref}
+              className="text-[12px] text-slate-400 hover:text-slate-700 hover:underline"
+            >
+              Suggest correction
+            </a>
+          </div>
+        </div>
+
+        {/* Action column (desktop) */}
+        <div className="hidden sm:flex flex-col items-end justify-between col-start-3 row-start-1 h-full">
+          {hasLink ? (
+            <a
+              href={event.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium inline-flex items-center gap-1.5 group-hover:gap-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 rounded-sm"
+              style={{ color: TEAL }}
+            >
+              View Event
+              <span className="inline-block transition-transform group-hover:translate-x-0.5">→</span>
+            </a>
+          ) : (
+            <span />
+          )}
+          <a
+            href={mailtoHref}
+            className="text-[11.5px] text-slate-400 hover:text-slate-700 hover:underline"
+          >
+            Suggest correction
+          </a>
+        </div>
+      </article>
     </li>
   )
 }
