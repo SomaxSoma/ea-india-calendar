@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Plus_Jakarta_Sans } from 'next/font/google'
@@ -13,6 +13,45 @@ const jakarta = Plus_Jakarta_Sans({
 
 const TEAL = '#0EA5A0'
 
+const LIMITS = {
+  title: 150,
+  description: 500,
+  location: 100,
+  link: 500,
+}
+
+const RATE_KEY = 'ea-india-submit-timestamps'
+const RATE_LIMIT = 3
+const RATE_WINDOW_MS = 15 * 60 * 1000
+
+function pad(n) {
+  return String(n).padStart(2, '0')
+}
+
+function todayLocalStartForInput() {
+  const d = new Date()
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00`
+}
+
+function readRecentSubmissions() {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(RATE_KEY)
+    const arr = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(arr)) return []
+    const cutoff = Date.now() - RATE_WINDOW_MS
+    return arr.filter((t) => typeof t === 'number' && t > cutoff)
+  } catch {
+    return []
+  }
+}
+
+function persistRecentSubmissions(arr) {
+  try {
+    window.localStorage.setItem(RATE_KEY, JSON.stringify(arr))
+  } catch {}
+}
+
 export default function SubmitEvent() {
   const [form, setForm] = useState({
     title: '',
@@ -24,16 +63,78 @@ export default function SubmitEvent() {
     type: 'meetup'
   })
   const [status, setStatus] = useState(null)
+  const [errorMessage, setErrorMessage] = useState(null)
+  const [dateError, setDateError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [recentSubmissions, setRecentSubmissions] = useState([])
+  const [now, setNow] = useState(() => Date.now())
+
+  const minStart = useMemo(() => todayLocalStartForInput(), [])
+
+  useEffect(() => {
+    setRecentSubmissions(readRecentSubmissions())
+    const interval = setInterval(() => {
+      setRecentSubmissions(readRecentSubmissions())
+      setNow(Date.now())
+    }, 30_000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const rateLimited = recentSubmissions.length >= RATE_LIMIT
+  const unblockAt = rateLimited ? Math.min(...recentSubmissions) + RATE_WINDOW_MS : null
+  const minutesRemaining = unblockAt ? Math.max(1, Math.ceil((unblockAt - now) / 60_000)) : 0
 
   function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+    const limit = LIMITS[name]
+    const nextValue = limit && value.length > limit ? value.slice(0, limit) : value
+    setForm((f) => ({ ...f, [name]: nextValue }))
+    if (name === 'start_date' || name === 'end_date') setDateError(null)
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    setSubmitting(true)
+    if (submitting) return
+
+    setDateError(null)
+    setErrorMessage(null)
     setStatus(null)
+
+    if (rateLimited) return
+
+    if (form.title.length > LIMITS.title) {
+      setErrorMessage(`Title must be ${LIMITS.title} characters or fewer.`)
+      return
+    }
+    if (form.description.length > LIMITS.description) {
+      setErrorMessage(`Description must be ${LIMITS.description} characters or fewer.`)
+      return
+    }
+    if (form.location.length > LIMITS.location) {
+      setErrorMessage(`Location must be ${LIMITS.location} characters or fewer.`)
+      return
+    }
+    if (form.link.length > LIMITS.link) {
+      setErrorMessage(`Link must be ${LIMITS.link} characters or fewer.`)
+      return
+    }
+
+    const startDate = new Date(form.start_date)
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    if (isNaN(startDate.getTime()) || startDate < startOfToday) {
+      setDateError('Start date cannot be in the past.')
+      return
+    }
+    if (form.end_date) {
+      const endDate = new Date(form.end_date)
+      if (isNaN(endDate.getTime()) || endDate < startDate) {
+        setDateError('End date cannot be before start date.')
+        return
+      }
+    }
+
+    setSubmitting(true)
 
     try {
       const payload = {
@@ -55,9 +156,18 @@ export default function SubmitEvent() {
       if (res.status === 409) {
         setStatus('duplicate')
       } else if (!res.ok) {
+        let serverMessage = null
+        try {
+          const data = await res.json()
+          if (data?.error) serverMessage = data.error
+        } catch {}
+        setErrorMessage(serverMessage)
         setStatus('error')
       } else {
         setStatus('success')
+        const next = [...readRecentSubmissions(), Date.now()]
+        persistRecentSubmissions(next)
+        setRecentSubmissions(next.filter((t) => t > Date.now() - RATE_WINDOW_MS))
         setForm({
           title: '',
           start_date: '',
@@ -77,6 +187,8 @@ export default function SubmitEvent() {
 
   const inputClass =
     'w-full bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-colors'
+  const counterClass = 'mt-1 text-[11px] text-slate-400 tabular-nums text-right'
+  const endDateMin = form.start_date || minStart
 
   return (
     <div className={`${jakarta.variable} min-h-screen bg-slate-50 text-slate-800`} style={{ fontFamily: 'var(--font-sans-jakarta), ui-sans-serif, system-ui' }}>
@@ -136,11 +248,13 @@ export default function SubmitEvent() {
               type="text"
               name="title"
               required
+              maxLength={LIMITS.title}
               value={form.title}
               onChange={handleChange}
               className={inputClass}
               placeholder="What's the event called?"
             />
+            <div className={counterClass}>{form.title.length}/{LIMITS.title}</div>
           </div>
 
           {/* Dates row */}
@@ -153,6 +267,7 @@ export default function SubmitEvent() {
                 type="datetime-local"
                 name="start_date"
                 required
+                min={minStart}
                 value={form.start_date}
                 onChange={handleChange}
                 className={inputClass}
@@ -165,12 +280,16 @@ export default function SubmitEvent() {
               <input
                 type="datetime-local"
                 name="end_date"
+                min={endDateMin}
                 value={form.end_date}
                 onChange={handleChange}
                 className={inputClass}
               />
             </div>
           </div>
+          {dateError && (
+            <p className="text-[12px] text-rose-600 -mt-2">{dateError}</p>
+          )}
 
           {/* Description */}
           <div>
@@ -180,11 +299,13 @@ export default function SubmitEvent() {
             <textarea
               name="description"
               rows={3}
+              maxLength={LIMITS.description}
               value={form.description}
               onChange={handleChange}
               className={`${inputClass} resize-none`}
               placeholder="Brief description of the event..."
             />
+            <div className={counterClass}>{form.description.length}/{LIMITS.description}</div>
           </div>
 
           {/* Link */}
@@ -195,6 +316,7 @@ export default function SubmitEvent() {
             <input
               type="url"
               name="link"
+              maxLength={LIMITS.link}
               value={form.link}
               onChange={handleChange}
               className={inputClass}
@@ -211,11 +333,13 @@ export default function SubmitEvent() {
               <input
                 type="text"
                 name="location"
+                maxLength={LIMITS.location}
                 value={form.location}
                 onChange={handleChange}
                 className={inputClass}
                 placeholder="City, Country or Online"
               />
+              <div className={counterClass}>{form.location.length}/{LIMITS.location}</div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -239,12 +363,21 @@ export default function SubmitEvent() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || rateLimited}
             className="w-full mt-1 text-white font-semibold text-sm py-3 rounded-lg shadow-sm hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ backgroundColor: TEAL }}
           >
             {submitting ? 'Submitting...' : 'Submit Event'}
           </button>
+
+          {rateLimited && (
+            <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              You&apos;ve submitted several events recently. Please wait before submitting another.
+              <div className="mt-1 text-amber-700 text-[13px]">
+                Try again in {minutesRemaining} {minutesRemaining === 1 ? 'minute' : 'minutes'}.
+              </div>
+            </div>
+          )}
 
           {/* Status messages */}
           {status === 'success' && (
@@ -259,7 +392,12 @@ export default function SubmitEvent() {
           )}
           {status === 'error' && (
             <div className="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm">
-              Something went wrong. Please try again.
+              {errorMessage || 'Something went wrong. Please try again.'}
+            </div>
+          )}
+          {!status && errorMessage && (
+            <div className="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+              {errorMessage}
             </div>
           )}
         </form>

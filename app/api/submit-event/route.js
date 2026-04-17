@@ -10,6 +10,13 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;')
 }
 
+const LIMITS = {
+  title: 150,
+  description: 500,
+  location: 100,
+  link: 500,
+}
+
 export async function POST(request) {
   try {
     const body = await request.json()
@@ -19,6 +26,50 @@ export async function POST(request) {
         { error: 'Title and start date are required' },
         { status: 400 }
       )
+    }
+
+    if (typeof body.title === 'string' && body.title.length > LIMITS.title) {
+      return Response.json(
+        { error: `Title must be ${LIMITS.title} characters or fewer` },
+        { status: 400 }
+      )
+    }
+    if (typeof body.description === 'string' && body.description.length > LIMITS.description) {
+      return Response.json(
+        { error: `Description must be ${LIMITS.description} characters or fewer` },
+        { status: 400 }
+      )
+    }
+    if (typeof body.location === 'string' && body.location.length > LIMITS.location) {
+      return Response.json(
+        { error: `Location must be ${LIMITS.location} characters or fewer` },
+        { status: 400 }
+      )
+    }
+    if (typeof body.link === 'string' && body.link.length > LIMITS.link) {
+      return Response.json(
+        { error: `Link must be ${LIMITS.link} characters or fewer` },
+        { status: 400 }
+      )
+    }
+
+    const startDate = new Date(body.start_date)
+    if (isNaN(startDate.getTime())) {
+      return Response.json({ error: 'Invalid start date' }, { status: 400 })
+    }
+    const startOfToday = new Date()
+    startOfToday.setUTCHours(0, 0, 0, 0)
+    if (startDate < startOfToday) {
+      return Response.json({ error: 'Start date cannot be in the past' }, { status: 400 })
+    }
+    if (body.end_date) {
+      const endDate = new Date(body.end_date)
+      if (isNaN(endDate.getTime())) {
+        return Response.json({ error: 'Invalid end date' }, { status: 400 })
+      }
+      if (endDate < startDate) {
+        return Response.json({ error: 'End date cannot be before start date' }, { status: 400 })
+      }
     }
 
     // Check for duplicate: same title + same start date
