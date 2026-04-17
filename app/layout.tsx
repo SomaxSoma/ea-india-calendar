@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "EA India Events",
   description: "Upcoming AI safety and EA events in India and online",
+  icons: { icon: '/favicon.png' },
 };
 
 export default function RootLayout({

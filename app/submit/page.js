@@ -1,6 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { Plus_Jakarta_Sans } from 'next/font/google'
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans-jakarta',
+})
+
+const TEAL = '#0EA5A0'
 
 export default function SubmitEvent() {
   const [form, setForm] = useState({
@@ -12,7 +23,7 @@ export default function SubmitEvent() {
     location: '',
     type: 'meetup'
   })
-  const [status, setStatus] = useState(null) // 'success' | 'duplicate' | 'error'
+  const [status, setStatus] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
   function handleChange(e) {
@@ -64,37 +75,62 @@ export default function SubmitEvent() {
     }
   }
 
+  const inputClass =
+    'w-full bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-colors'
+
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 relative overflow-hidden">
-      {/* Decorative background grain */}
-      <div className="fixed inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-        }}
-      />
+    <div className={`${jakarta.variable} min-h-screen bg-slate-50 text-slate-800`} style={{ fontFamily: 'var(--font-sans-jakarta), ui-sans-serif, system-ui' }}>
+      {/* NAV */}
+      <header className="bg-white border-b border-slate-200/80">
+        <div className="max-w-5xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <Image
+              src="/favicon.png"
+              alt="EA India"
+              width={36}
+              height={36}
+              className="rounded-md"
+              priority
+            />
+            <span className="font-semibold text-slate-900 tracking-tight text-[15px] sm:text-base">
+              EA India Events
+            </span>
+          </Link>
+          <Link
+            href="/"
+            className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+          >
+            ← Back to events
+          </Link>
+        </div>
+      </header>
 
-      {/* Accent glow */}
-      <div className="fixed top-[-40%] right-[-20%] w-[600px] h-[600px] rounded-full bg-amber-500/[0.07] blur-[120px] pointer-events-none" />
-      <div className="fixed bottom-[-30%] left-[-10%] w-[400px] h-[400px] rounded-full bg-orange-600/[0.05] blur-[100px] pointer-events-none" />
-
-      <div className="relative z-10 max-w-lg mx-auto px-5 py-12 sm:py-20">
+      <div className="max-w-lg mx-auto px-5 py-12 sm:py-16">
         {/* Header */}
         <div className="mb-10">
-          <p className="text-amber-400 text-xs tracking-[0.3em] uppercase mb-3 font-medium">
+          <span
+            className="inline-block text-[11px] font-semibold tracking-wider uppercase mb-4 px-3 py-1 rounded-full border"
+            style={{ color: TEAL, borderColor: 'rgba(14,165,160,0.25)', backgroundColor: 'rgba(14,165,160,0.07)' }}
+          >
             Community Events
-          </p>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-stone-50 leading-tight">
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 leading-tight">
             Submit an Event
           </h1>
-          <div className="mt-3 h-px w-16 bg-gradient-to-r from-amber-500 to-transparent" />
+          <p className="mt-3 text-slate-600 text-[15px] leading-relaxed">
+            Share an upcoming AI safety or EA event with the Indian community.
+          </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-7 space-y-5"
+        >
           {/* Title */}
           <div>
-            <label className="block text-xs tracking-wide uppercase text-stone-400 mb-2">
-              Title <span className="text-amber-500">*</span>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Title <span style={{ color: TEAL }}>*</span>
             </label>
             <input
               type="text"
@@ -102,7 +138,7 @@ export default function SubmitEvent() {
               required
               value={form.title}
               onChange={handleChange}
-              className="w-full bg-stone-900/60 border border-stone-800 rounded-lg px-4 py-3 text-stone-100 placeholder-stone-600 text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-colors"
+              className={inputClass}
               placeholder="What's the event called?"
             />
           </div>
@@ -110,8 +146,8 @@ export default function SubmitEvent() {
           {/* Dates row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs tracking-wide uppercase text-stone-400 mb-2">
-                Start Date <span className="text-amber-500">*</span>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Start Date <span style={{ color: TEAL }}>*</span>
               </label>
               <input
                 type="datetime-local"
@@ -119,11 +155,11 @@ export default function SubmitEvent() {
                 required
                 value={form.start_date}
                 onChange={handleChange}
-                className="w-full bg-stone-900/60 border border-stone-800 rounded-lg px-4 py-3 text-stone-100 text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-colors [color-scheme:dark]"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-xs tracking-wide uppercase text-stone-400 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 End Date
               </label>
               <input
@@ -131,14 +167,14 @@ export default function SubmitEvent() {
                 name="end_date"
                 value={form.end_date}
                 onChange={handleChange}
-                className="w-full bg-stone-900/60 border border-stone-800 rounded-lg px-4 py-3 text-stone-100 text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-colors [color-scheme:dark]"
+                className={inputClass}
               />
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs tracking-wide uppercase text-stone-400 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Description
             </label>
             <textarea
@@ -146,14 +182,14 @@ export default function SubmitEvent() {
               rows={3}
               value={form.description}
               onChange={handleChange}
-              className="w-full bg-stone-900/60 border border-stone-800 rounded-lg px-4 py-3 text-stone-100 placeholder-stone-600 text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-colors resize-none"
+              className={`${inputClass} resize-none`}
               placeholder="Brief description of the event..."
             />
           </div>
 
           {/* Link */}
           <div>
-            <label className="block text-xs tracking-wide uppercase text-stone-400 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Link
             </label>
             <input
@@ -161,7 +197,7 @@ export default function SubmitEvent() {
               name="link"
               value={form.link}
               onChange={handleChange}
-              className="w-full bg-stone-900/60 border border-stone-800 rounded-lg px-4 py-3 text-stone-100 placeholder-stone-600 text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-colors"
+              className={inputClass}
               placeholder="https://..."
             />
           </div>
@@ -169,7 +205,7 @@ export default function SubmitEvent() {
           {/* Location + Type row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs tracking-wide uppercase text-stone-400 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Location
               </label>
               <input
@@ -177,19 +213,19 @@ export default function SubmitEvent() {
                 name="location"
                 value={form.location}
                 onChange={handleChange}
-                className="w-full bg-stone-900/60 border border-stone-800 rounded-lg px-4 py-3 text-stone-100 placeholder-stone-600 text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-colors"
+                className={inputClass}
                 placeholder="City, Country or Online"
               />
             </div>
             <div>
-              <label className="block text-xs tracking-wide uppercase text-stone-400 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Type
               </label>
               <select
                 name="type"
                 value={form.type}
                 onChange={handleChange}
-                className="w-full bg-stone-900/60 border border-stone-800 rounded-lg px-4 py-3 text-stone-100 text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-colors appearance-none cursor-pointer"
+                className={`${inputClass} cursor-pointer`}
               >
                 <option value="meetup">Meetup</option>
                 <option value="bootcamp">Bootcamp</option>
@@ -204,30 +240,31 @@ export default function SubmitEvent() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full mt-2 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/40 disabled:cursor-not-allowed text-stone-950 font-semibold text-sm tracking-wide py-3.5 rounded-lg transition-colors"
+            className="w-full mt-1 text-white font-semibold text-sm py-3 rounded-lg shadow-sm hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ backgroundColor: TEAL }}
           >
             {submitting ? 'Submitting...' : 'Submit Event'}
           </button>
 
           {/* Status messages */}
           {status === 'success' && (
-            <div className="mt-4 px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm">
-              Event submitted!
+            <div className="px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
+              Event submitted! It will appear on the calendar after review.
             </div>
           )}
           {status === 'duplicate' && (
-            <div className="mt-4 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
-              This event already exists
+            <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              This event already exists.
             </div>
           )}
           {status === 'error' && (
-            <div className="mt-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
-              Something went wrong, please try again
+            <div className="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+              Something went wrong. Please try again.
             </div>
           )}
         </form>
 
-        <p className="mt-8 text-center text-xs text-stone-600">
+        <p className="mt-8 text-center text-xs text-slate-500">
           Events are reviewed before appearing on the calendar.
         </p>
       </div>

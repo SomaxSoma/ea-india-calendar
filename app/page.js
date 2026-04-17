@@ -2,45 +2,35 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Fraunces, JetBrains_Mono, Manrope } from 'next/font/google'
+import Image from 'next/image'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 import { supabase } from '../lib/supabase'
 
-const fraunces = Fraunces({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   display: 'swap',
-  axes: ['SOFT', 'opsz'],
-  variable: '--font-fraunces',
+  variable: '--font-sans-jakarta',
 })
 
-const mono = JetBrains_Mono({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-mono-display',
-})
-
-const manrope = Manrope({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-body',
-})
+const TEAL = '#0EA5A0'
 
 const TYPE_META = {
-  meetup:     { label: 'Meetup',     dot: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-400/30' },
-  bootcamp:   { label: 'Bootcamp',   dot: 'bg-amber-400',   text: 'text-amber-300',   ring: 'ring-amber-400/30' },
-  course:     { label: 'Course',     dot: 'bg-sky-400',     text: 'text-sky-300',     ring: 'ring-sky-400/30' },
-  conference: { label: 'Conference', dot: 'bg-rose-400',    text: 'text-rose-300',    ring: 'ring-rose-400/30' },
-  workshop:   { label: 'Workshop',   dot: 'bg-violet-400',  text: 'text-violet-300',  ring: 'ring-violet-400/30' },
+  meetup:     { label: 'Meetup',     chipBg: 'bg-teal-50',    chipText: 'text-teal-700',    chipBorder: 'border-teal-200' },
+  bootcamp:   { label: 'Bootcamp',   chipBg: 'bg-cyan-50',    chipText: 'text-cyan-700',    chipBorder: 'border-cyan-200' },
+  course:     { label: 'Course',     chipBg: 'bg-sky-50',     chipText: 'text-sky-700',     chipBorder: 'border-sky-200' },
+  conference: { label: 'Conference', chipBg: 'bg-emerald-50', chipText: 'text-emerald-700', chipBorder: 'border-emerald-200' },
+  workshop:   { label: 'Workshop',   chipBg: 'bg-indigo-50',  chipText: 'text-indigo-700',  chipBorder: 'border-indigo-200' },
 }
 
 const TYPE_FILTERS = ['all', 'meetup', 'bootcamp', 'course', 'conference', 'workshop']
 const MODE_FILTERS = ['all', 'online', 'in-person']
 
-const monthFmt    = new Intl.DateTimeFormat('en-US', { month: 'long',   year: 'numeric' })
-const shortFmt    = new Intl.DateTimeFormat('en-US', { month: 'short',  day: 'numeric' })
-const shortYrFmt  = new Intl.DateTimeFormat('en-US', { month: 'short',  day: 'numeric', year: 'numeric' })
-const dayNumFmt   = new Intl.DateTimeFormat('en-US', { day: '2-digit' })
-const dayMonFmt   = new Intl.DateTimeFormat('en-US', { month: 'short' })
-const weekdayFmt  = new Intl.DateTimeFormat('en-US', { weekday: 'short' })
+const monthFmt   = new Intl.DateTimeFormat('en-US', { month: 'long',  year: 'numeric' })
+const shortFmt   = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+const shortYrFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+const dayNumFmt  = new Intl.DateTimeFormat('en-US', { day: '2-digit' })
+const dayMonFmt  = new Intl.DateTimeFormat('en-US', { month: 'short' })
+const weekdayFmt = new Intl.DateTimeFormat('en-US', { weekday: 'short' })
 
 function formatRange(startISO, endISO) {
   const start = new Date(startISO)
@@ -108,154 +98,124 @@ export default function EventsPage() {
   }, [filtered])
 
   return (
-    <div className={`${fraunces.variable} ${mono.variable} ${manrope.variable} min-h-screen bg-stone-950 text-stone-100 relative overflow-hidden`}>
-      {/* paper grain */}
-      <div
-        className="fixed inset-0 opacity-[0.035] pointer-events-none mix-blend-overlay"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-        }}
-      />
-      {/* ambient glows */}
-      <div className="fixed top-[-30%] right-[-15%] w-[700px] h-[700px] rounded-full bg-amber-500/[0.06] blur-[130px] pointer-events-none" />
-      <div className="fixed bottom-[-20%] left-[-15%] w-[500px] h-[500px] rounded-full bg-orange-700/[0.05] blur-[110px] pointer-events-none" />
-      {/* faint vertical rule */}
-      <div className="hidden lg:block fixed top-0 bottom-0 left-[calc(50%-480px)] w-px bg-stone-100/[0.04] pointer-events-none" />
-
-      <div className="relative z-10" style={{ fontFamily: 'var(--font-body), ui-sans-serif, system-ui' }}>
-        {/* NAV */}
-        <header className="border-b border-stone-100/[0.06]">
-          <div className="max-w-5xl mx-auto px-5 sm:px-8 py-5 flex items-center justify-between">
-            <Link href="/" className="group flex items-center gap-2.5">
-              <span className="block w-2 h-2 rounded-full bg-amber-400 group-hover:bg-amber-300 transition-colors" />
-              <span
-                className="text-[11px] tracking-[0.35em] uppercase text-stone-300 group-hover:text-stone-100 transition-colors"
-                style={{ fontFamily: 'var(--font-mono-display), ui-monospace' }}
-              >
-                EA · India
-              </span>
-            </Link>
-            <Link
-              href="/submit"
-              className="group inline-flex items-center gap-2 rounded-full border border-stone-100/10 hover:border-amber-400/60 bg-stone-900/40 hover:bg-amber-400/10 pl-4 pr-3 py-1.5 text-[12px] tracking-wide text-stone-200 hover:text-amber-200 transition-all"
-            >
-              Submit Event
-              <span className="text-amber-400 group-hover:translate-x-0.5 transition-transform">→</span>
-            </Link>
-          </div>
-        </header>
-
-        {/* HERO */}
-        <section className="max-w-5xl mx-auto px-5 sm:px-8 pt-14 sm:pt-24 pb-10 sm:pb-16">
-          <p
-            className="text-amber-400/90 text-[10px] sm:text-[11px] tracking-[0.4em] uppercase mb-5 sm:mb-7 reveal"
-            style={{ fontFamily: 'var(--font-mono-display), ui-monospace', animationDelay: '0ms' }}
-          >
-            ⟢ Calendar · Vol. {new Date().getFullYear()}
-          </p>
-          <h1
-            className="reveal text-[44px] leading-[0.95] sm:text-[88px] sm:leading-[0.92] tracking-[-0.025em] text-stone-50 font-light"
-            style={{ fontFamily: 'var(--font-fraunces), serif', fontVariationSettings: '"SOFT" 100, "opsz" 144', animationDelay: '70ms' }}
-          >
-            EA <span className="italic text-amber-300/95" style={{ fontVariationSettings: '"SOFT" 100, "opsz" 144' }}>India</span>
-            <br />
-            Events.
-          </h1>
-          <p
-            className="reveal mt-6 sm:mt-8 max-w-xl text-stone-400 text-[15px] sm:text-[17px] leading-relaxed"
-            style={{ animationDelay: '140ms' }}
-          >
-            Upcoming AI safety and effective altruism events — in India and online. Meetups, bootcamps, courses, and more.
-          </p>
-        </section>
-
-        {/* FILTER BAR */}
-        <section className="max-w-5xl mx-auto px-5 sm:px-8 pb-10 reveal" style={{ animationDelay: '220ms' }}>
-          <div className="flex flex-col gap-5 sm:gap-4 sm:flex-row sm:items-center sm:justify-between border-y border-stone-100/[0.06] py-5">
-            <FilterGroup
-              label="Type"
-              options={TYPE_FILTERS.map((t) => ({ value: t, label: t === 'all' ? 'All' : TYPE_META[t].label }))}
-              value={typeFilter}
-              onChange={setTypeFilter}
+    <div className={`${jakarta.variable} min-h-screen bg-slate-50 text-slate-800`} style={{ fontFamily: 'var(--font-sans-jakarta), ui-sans-serif, system-ui' }}>
+      {/* NAV */}
+      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-20 backdrop-blur-sm supports-[backdrop-filter]:bg-white/85">
+        <div className="max-w-5xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 group">
+            <Image
+              src="/favicon.png"
+              alt="EA India"
+              width={36}
+              height={36}
+              className="rounded-md"
+              priority
             />
-            <FilterGroup
-              label="Mode"
-              options={MODE_FILTERS.map((m) => ({ value: m, label: m === 'all' ? 'All' : m === 'online' ? 'Online' : 'In-person' }))}
-              value={modeFilter}
-              onChange={setModeFilter}
-            />
-          </div>
-        </section>
-
-        {/* LIST */}
-        <main className="max-w-5xl mx-auto px-5 sm:px-8 pb-32">
-          {loading && <SkeletonList />}
-          {!loading && error && (
-            <p className="text-rose-300 text-sm py-10">Couldn't load events: {error}</p>
-          )}
-          {!loading && !error && grouped.length === 0 && (
-            <div className="py-24 text-center">
-              <p
-                className="text-stone-500 text-[11px] tracking-[0.3em] uppercase mb-3"
-                style={{ fontFamily: 'var(--font-mono-display), ui-monospace' }}
-              >
-                Nothing scheduled
-              </p>
-              <p className="text-stone-300 text-lg" style={{ fontFamily: 'var(--font-fraunces), serif' }}>
-                No events match these filters — yet.
-              </p>
-            </div>
-          )}
-
-          {!loading && !error && grouped.map((group, gIdx) => (
-            <section key={group.key} className="mb-14 last:mb-0">
-              <MonthDivider label={group.label} count={group.items.length} delay={gIdx * 30} />
-              <ul className="mt-6 space-y-3 sm:space-y-4">
-                {group.items.map((evt, i) => (
-                  <EventCard key={evt.id} event={evt} index={i} />
-                ))}
-              </ul>
-            </section>
-          ))}
-        </main>
-
-        <footer className="border-t border-stone-100/[0.06]">
-          <div
-            className="max-w-5xl mx-auto px-5 sm:px-8 py-8 text-[11px] tracking-[0.25em] uppercase text-stone-500 flex flex-col sm:flex-row gap-3 justify-between"
-            style={{ fontFamily: 'var(--font-mono-display), ui-monospace' }}
+            <span className="font-semibold text-slate-900 tracking-tight text-[15px] sm:text-base">
+              EA India Events
+            </span>
+          </Link>
+          <Link
+            href="/submit"
+            className="inline-flex items-center gap-1.5 rounded-full text-white font-medium text-[13px] sm:text-sm px-4 py-2 shadow-sm hover:shadow-md transition-all"
+            style={{ backgroundColor: TEAL }}
           >
-            <span>⟢ Curated for the Indian EA &amp; AI-safety community</span>
-            <Link href="/submit" className="hover:text-amber-300 transition-colors">Submit an event →</Link>
-          </div>
-        </footer>
-      </div>
+            Submit Event
+            <span>→</span>
+          </Link>
+        </div>
+      </header>
 
-      <style>{`
-        @keyframes rise {
-          from { opacity: 0; transform: translateY(14px); filter: blur(4px); }
-          to   { opacity: 1; transform: translateY(0);    filter: blur(0);  }
-        }
-        .reveal {
-          opacity: 0;
-          animation: rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-        }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { scrollbar-width: none; }
-      `}</style>
+      {/* HERO */}
+      <section className="max-w-5xl mx-auto px-5 sm:px-8 pt-12 sm:pt-20 pb-8 sm:pb-12">
+        <span
+          className="inline-block text-[11px] font-semibold tracking-wider uppercase mb-4 px-3 py-1 rounded-full border"
+          style={{ color: TEAL, borderColor: 'rgba(14,165,160,0.25)', backgroundColor: 'rgba(14,165,160,0.07)' }}
+        >
+          Community Calendar
+        </span>
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-slate-900 leading-[1.05]">
+          EA India <span style={{ color: TEAL }}>Events</span>
+        </h1>
+        <p className="mt-5 sm:mt-6 max-w-2xl text-slate-600 text-base sm:text-lg leading-relaxed">
+          Upcoming AI safety and effective altruism events — in India and online. Meetups, bootcamps, courses, and more.
+        </p>
+      </section>
+
+      {/* FILTERS */}
+      <section className="max-w-5xl mx-auto px-5 sm:px-8 pb-8">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <FilterGroup
+            label="Type"
+            options={TYPE_FILTERS.map((t) => ({ value: t, label: t === 'all' ? 'All' : TYPE_META[t].label }))}
+            value={typeFilter}
+            onChange={setTypeFilter}
+          />
+          <div className="hidden sm:block w-px h-6 bg-slate-200" />
+          <FilterGroup
+            label="Mode"
+            options={MODE_FILTERS.map((m) => ({ value: m, label: m === 'all' ? 'All' : m === 'online' ? 'Online' : 'In-person' }))}
+            value={modeFilter}
+            onChange={setModeFilter}
+          />
+        </div>
+      </section>
+
+      {/* LIST */}
+      <main className="max-w-5xl mx-auto px-5 sm:px-8 pb-24">
+        {loading && <SkeletonList />}
+
+        {!loading && error && (
+          <p className="text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-4 text-sm">
+            Couldn't load events: {error}
+          </p>
+        )}
+
+        {!loading && !error && grouped.length === 0 && (
+          <div className="bg-white border border-slate-200 rounded-2xl py-16 text-center shadow-sm">
+            <p className="text-xs font-semibold tracking-wider uppercase mb-3" style={{ color: TEAL }}>
+              Nothing scheduled
+            </p>
+            <p className="text-slate-700 text-lg font-medium">
+              No events match these filters — yet.
+            </p>
+            <p className="text-slate-500 text-sm mt-2">
+              Know of one? <Link href="/submit" className="underline" style={{ color: TEAL }}>Submit it here</Link>.
+            </p>
+          </div>
+        )}
+
+        {!loading && !error && grouped.map((group) => (
+          <section key={group.key} className="mb-10 last:mb-0">
+            <MonthDivider label={group.label} count={group.items.length} />
+            <ul className="mt-5 space-y-3 sm:space-y-4">
+              {group.items.map((evt, i) => (
+                <EventCard key={evt.id} event={evt} index={i} />
+              ))}
+            </ul>
+          </section>
+        ))}
+      </main>
+
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="max-w-5xl mx-auto px-5 sm:px-8 py-8 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center text-sm text-slate-500">
+          <span>Curated for the Indian EA &amp; AI-safety community.</span>
+          <Link href="/submit" className="font-medium hover:underline" style={{ color: TEAL }}>
+            Submit an event →
+          </Link>
+        </div>
+      </footer>
     </div>
   )
 }
 
 function FilterGroup({ label, options, value, onChange }) {
   return (
-    <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
-      <span
-        className="shrink-0 text-[10px] tracking-[0.35em] uppercase text-stone-500"
-        style={{ fontFamily: 'var(--font-mono-display), ui-monospace' }}
-      >
-        {label} /
+    <div className="flex items-center gap-3 overflow-x-auto">
+      <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        {label}
       </span>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
         {options.map((opt) => {
           const active = value === opt.value
           return (
@@ -263,11 +223,12 @@ function FilterGroup({ label, options, value, onChange }) {
               key={opt.value}
               onClick={() => onChange(opt.value)}
               className={[
-                'px-3 py-1.5 rounded-full text-[12px] tracking-wide transition-all whitespace-nowrap',
+                'px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-colors whitespace-nowrap border',
                 active
-                  ? 'bg-amber-400 text-stone-950 shadow-[0_0_0_3px_rgba(251,191,36,0.12)]'
-                  : 'text-stone-400 hover:text-stone-100 border border-stone-100/[0.08] hover:border-stone-100/20',
+                  ? 'text-white border-transparent'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900',
               ].join(' ')}
+              style={active ? { backgroundColor: TEAL } : undefined}
             >
               {opt.label}
             </button>
@@ -278,108 +239,74 @@ function FilterGroup({ label, options, value, onChange }) {
   )
 }
 
-function MonthDivider({ label, count, delay = 0 }) {
+function MonthDivider({ label, count }) {
   return (
-    <div className="reveal flex items-baseline gap-4 sm:gap-6" style={{ animationDelay: `${delay}ms` }}>
-      <h2
-        className="text-stone-100 text-2xl sm:text-3xl tracking-tight"
-        style={{ fontFamily: 'var(--font-fraunces), serif', fontVariationSettings: '"SOFT" 100, "opsz" 72', fontStyle: 'italic', fontWeight: 400 }}
-      >
+    <div className="flex items-baseline gap-4 sm:gap-6">
+      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
         {label}
       </h2>
-      <div className="flex-1 h-px bg-gradient-to-r from-stone-100/15 via-stone-100/[0.04] to-transparent" />
-      <span
-        className="text-[10px] tracking-[0.3em] uppercase text-stone-500 tabular-nums"
-        style={{ fontFamily: 'var(--font-mono-display), ui-monospace' }}
-      >
-        {String(count).padStart(2, '0')} {count === 1 ? 'event' : 'events'}
+      <div className="flex-1 h-px bg-slate-200" />
+      <span className="text-xs font-medium uppercase tracking-wider text-slate-500 tabular-nums">
+        {count} {count === 1 ? 'event' : 'events'}
       </span>
     </div>
   )
 }
 
-function EventCard({ event, index }) {
+function EventCard({ event }) {
   const type = TYPE_META[event.type] ?? TYPE_META.meetup
   const start = new Date(event.start_date)
   const hasLink = Boolean(event.link)
   const locations = Array.isArray(event.location) ? event.location.filter(Boolean) : []
 
   const body = (
-    <article
-      className="reveal group relative grid grid-cols-[auto_1fr] sm:grid-cols-[96px_1fr_auto] gap-x-5 sm:gap-x-8 gap-y-3 p-5 sm:p-7 rounded-2xl border border-stone-100/[0.07] bg-stone-900/30 hover:bg-stone-900/55 hover:border-amber-400/25 transition-all duration-300"
-      style={{ animationDelay: `${Math.min(index, 10) * 50}ms` }}
-    >
+    <article className="group relative grid grid-cols-[auto_1fr] sm:grid-cols-[88px_1fr_auto] gap-x-5 sm:gap-x-7 gap-y-3 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200">
       {/* Date block */}
-      <div className="flex sm:flex-col items-baseline sm:items-start gap-2 sm:gap-0">
-        <div
-          className="text-[10px] tracking-[0.3em] uppercase text-amber-400/80"
-          style={{ fontFamily: 'var(--font-mono-display), ui-monospace' }}
-        >
+      <div className="flex sm:flex-col items-baseline sm:items-start gap-2 sm:gap-0 sm:pr-2 sm:border-r sm:border-slate-100">
+        <div className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: TEAL }}>
           {weekdayFmt.format(start)}
         </div>
-        <div
-          className="text-stone-50 text-4xl sm:text-5xl leading-none tabular-nums"
-          style={{ fontFamily: 'var(--font-fraunces), serif', fontVariationSettings: '"SOFT" 100, "opsz" 72', fontWeight: 300 }}
-        >
+        <div className="text-slate-900 text-3xl sm:text-4xl font-bold leading-none tabular-nums">
           {dayNumFmt.format(start)}
         </div>
-        <div
-          className="text-[11px] tracking-[0.25em] uppercase text-stone-400 sm:mt-1"
-          style={{ fontFamily: 'var(--font-mono-display), ui-monospace' }}
-        >
+        <div className="text-[11px] font-semibold tracking-wider uppercase text-slate-500 sm:mt-1">
           {dayMonFmt.format(start)}
         </div>
       </div>
 
       {/* Main */}
       <div className="col-span-2 sm:col-span-1 min-w-0">
-        <div className="flex items-center gap-2 mb-2">
-          <span className={`inline-block w-1.5 h-1.5 rounded-full ${type.dot}`} />
-          <span
-            className={`text-[10px] tracking-[0.3em] uppercase ${type.text}`}
-            style={{ fontFamily: 'var(--font-mono-display), ui-monospace' }}
-          >
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border ${type.chipBg} ${type.chipText} ${type.chipBorder}`}>
             {type.label}
           </span>
-          <span
-            className="text-[10px] tracking-[0.2em] uppercase text-stone-500"
-            style={{ fontFamily: 'var(--font-mono-display), ui-monospace' }}
-          >
-            · {formatRange(event.start_date, event.end_date)}
+          <span className="text-[12px] text-slate-500">
+            {formatRange(event.start_date, event.end_date)}
           </span>
         </div>
 
-        <h3
-          className="text-stone-50 text-[22px] sm:text-[26px] leading-[1.15] tracking-tight group-hover:text-amber-100 transition-colors"
-          style={{ fontFamily: 'var(--font-fraunces), serif', fontVariationSettings: '"SOFT" 50, "opsz" 72', fontWeight: 400 }}
-        >
+        <h3 className="text-slate-900 text-lg sm:text-xl font-semibold leading-snug tracking-tight group-hover:text-teal-700 transition-colors">
           {event.title}
         </h3>
 
         {event.description && (
-          <p
-            className="mt-2 text-stone-400 text-[14.5px] leading-relaxed line-clamp-3"
-            style={{ fontFamily: 'var(--font-body), ui-sans-serif' }}
-          >
+          <p className="mt-2 text-slate-600 text-[14.5px] leading-relaxed line-clamp-3">
             {event.description}
           </p>
         )}
 
         {(locations.length > 0 || event.registration_close) && (
-          <div className="mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-2">
+          <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-2">
             {locations.map((loc, i) => (
               <span
                 key={`${loc}-${i}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-stone-100/[0.04] border border-stone-100/[0.08] text-stone-300 text-[11px]"
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11.5px] font-medium"
               >
-                <span className="text-stone-500">◦</span>{loc}
+                {loc}
               </span>
             ))}
             {event.registration_close && (
-              <span
-                className="text-[11px] tracking-wide text-stone-500 pl-1"
-                style={{ fontFamily: 'var(--font-mono-display), ui-monospace' }}
-              >
+              <span className="text-[11.5px] text-slate-500 pl-1">
                 Reg. closes {shortFmt.format(new Date(event.registration_close))}
               </span>
             )}
@@ -387,19 +314,23 @@ function EventCard({ event, index }) {
         )}
       </div>
 
-      {/* Action */}
+      {/* Action (desktop) */}
       <div className="hidden sm:flex items-start justify-end col-start-3 row-start-1">
         {hasLink && (
-          <span className="text-amber-400/90 text-[13px] tracking-wide inline-flex items-center gap-1.5 group-hover:text-amber-300 transition-colors">
+          <span
+            className="text-sm font-medium inline-flex items-center gap-1.5 group-hover:gap-2 transition-all"
+            style={{ color: TEAL }}
+          >
             View Event
-            <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
+            <span className="inline-block transition-transform group-hover:translate-x-0.5">→</span>
           </span>
         )}
       </div>
 
+      {/* Action (mobile) */}
       {hasLink && (
         <div className="col-span-2 sm:hidden">
-          <span className="text-amber-400/90 text-[13px] tracking-wide inline-flex items-center gap-1.5">
+          <span className="text-sm font-medium inline-flex items-center gap-1.5" style={{ color: TEAL }}>
             View Event <span>→</span>
           </span>
         </div>
@@ -414,7 +345,7 @@ function EventCard({ event, index }) {
         href={event.link}
         target="_blank"
         rel="noopener noreferrer"
-        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 rounded-2xl"
+        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 rounded-2xl"
       >
         {body}
       </a>
@@ -428,7 +359,7 @@ function SkeletonList() {
       {[0, 1, 2, 3].map((i) => (
         <div
           key={i}
-          className="h-[148px] rounded-2xl border border-stone-100/[0.05] bg-stone-900/20 animate-pulse"
+          className="h-[140px] rounded-2xl border border-slate-200 bg-white shadow-sm animate-pulse"
           style={{ animationDelay: `${i * 120}ms` }}
         />
       ))}
