@@ -15,14 +15,24 @@ const jakarta = Plus_Jakarta_Sans({
 const TEAL = '#0EA5A0'
 
 const TYPE_META = {
-  meetup:     { label: 'Meetup',     chipBg: 'bg-teal-50',    chipText: 'text-teal-700',    chipBorder: 'border-teal-200' },
-  bootcamp:   { label: 'Bootcamp',   chipBg: 'bg-cyan-50',    chipText: 'text-cyan-700',    chipBorder: 'border-cyan-200' },
-  course:     { label: 'Course',     chipBg: 'bg-sky-50',     chipText: 'text-sky-700',     chipBorder: 'border-sky-200' },
-  conference: { label: 'Conference', chipBg: 'bg-emerald-50', chipText: 'text-emerald-700', chipBorder: 'border-emerald-200' },
-  workshop:   { label: 'Workshop',   chipBg: 'bg-indigo-50',  chipText: 'text-indigo-700',  chipBorder: 'border-indigo-200' },
+  meetup:     { label: 'Meetup',             chipBg: 'bg-teal-50',    chipText: 'text-teal-700',    chipBorder: 'border-teal-200' },
+  bootcamp:   { label: 'Co-working/Bootcamp', chipBg: 'bg-cyan-50',    chipText: 'text-cyan-700',    chipBorder: 'border-cyan-200' },
+  course:     { label: 'Course',             chipBg: 'bg-sky-50',     chipText: 'text-sky-700',     chipBorder: 'border-sky-200' },
+  conference: { label: 'Conference/Talks',   chipBg: 'bg-emerald-50', chipText: 'text-emerald-700', chipBorder: 'border-emerald-200' },
+  workshop:   { label: 'Workshop',           chipBg: 'bg-indigo-50',  chipText: 'text-indigo-700',  chipBorder: 'border-indigo-200' },
 }
 
 const TYPE_FILTERS = ['all', 'meetup', 'bootcamp', 'course', 'conference', 'workshop']
+
+function normalizeType(type) {
+  const t = (type || '').toLowerCase()
+  if (t.includes('bootcamp') || t.includes('co-working')) return 'bootcamp'
+  if (t.includes('conference') || t.includes('talks'))   return 'conference'
+  if (t.includes('meetup'))   return 'meetup'
+  if (t.includes('course'))   return 'course'
+  if (t.includes('workshop')) return 'workshop'
+  return 'meetup'
+}
 const MODE_FILTERS = ['all', 'online', 'in-person']
 
 const monthFmt   = new Intl.DateTimeFormat('en-US', { month: 'long',  year: 'numeric' })
@@ -76,7 +86,7 @@ export default function EventsPage() {
 
   const filtered = useMemo(() => {
     return events.filter((e) => {
-      if (typeFilter !== 'all' && e.type !== typeFilter) return false
+      if (typeFilter !== 'all' && normalizeType(e.type) !== typeFilter) return false
       if (modeFilter === 'online'    && !isOnline(e.location)) return false
       if (modeFilter === 'in-person' &&  isOnline(e.location) && (e.location?.length ?? 0) <= 1) return false
       return true
@@ -255,7 +265,7 @@ function MonthDivider({ label, count }) {
 }
 
 function EventCard({ event }) {
-  const type = TYPE_META[event.type] ?? TYPE_META.meetup
+  const type = TYPE_META[normalizeType(event.type)] ?? TYPE_META.meetup
   const start = new Date(event.start_date)
   const hasLink = Boolean(event.link)
   const locations = Array.isArray(event.location) ? event.location.filter(Boolean) : []

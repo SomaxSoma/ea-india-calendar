@@ -352,9 +352,9 @@ export default function SubmitEvent() {
                 className={`${inputClass} cursor-pointer`}
               >
                 <option value="meetup">Meetup</option>
-                <option value="bootcamp">Bootcamp</option>
+                <option value="co-working/bootcamp">Co-working/Bootcamp</option>
                 <option value="course">Course</option>
-                <option value="conference">Conference</option>
+                <option value="conference/talks">Conference/Talks</option>
                 <option value="workshop">Workshop</option>
               </select>
             </div>
