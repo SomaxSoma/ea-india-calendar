@@ -1,5 +1,66 @@
 import { supabase } from '../../../lib/supabase'
 
+const INDIA_CITIES = [
+  'india', 'bangalore', 'bengaluru', 'mumbai', 'delhi',
+  'hyderabad', 'chennai', 'pune', 'kolkata', 'ahmedabad',
+  'goa', 'jaipur', 'kochi', 'lucknow', 'chandigarh'
+]
+
+const NON_INDIA_PLACES = [
+  'canada', 'usa', 'u.s.a.', 'u.s.', 'america', 'american',
+  'uk', 'u.k.', 'britain', 'british', 'england', 'scotland', 'wales',
+  'united states', 'united kingdom',
+  'australia', 'australian', 'new zealand',
+  'germany', 'german', 'france', 'french', 'spain', 'spanish',
+  'italy', 'italian', 'netherlands', 'dutch', 'belgium', 'belgian',
+  'switzerland', 'swiss', 'austria', 'austrian', 'ireland', 'irish',
+  'portugal', 'portuguese', 'sweden', 'swedish', 'norway', 'norwegian',
+  'denmark', 'danish', 'finland', 'finnish', 'poland', 'polish',
+  'czech', 'hungary', 'hungarian', 'greece', 'greek',
+  'russia', 'russian', 'ukraine', 'ukrainian',
+  'china', 'chinese', 'japan', 'japanese', 'korea', 'korean',
+  'taiwan', 'taiwanese', 'singapore', 'singaporean',
+  'philippines', 'filipino', 'indonesia', 'indonesian',
+  'thailand', 'thai', 'vietnam', 'vietnamese', 'malaysia', 'malaysian',
+  'brazil', 'brazilian', 'mexico', 'mexican', 'argentina', 'argentinian',
+  'chile', 'chilean', 'colombia', 'colombian', 'peru', 'peruvian',
+  'south africa', 'south african', 'nigeria', 'nigerian', 'kenya', 'kenyan',
+  'egypt', 'egyptian', 'israel', 'israeli', 'turkey', 'turkish',
+  'iran', 'iranian', 'pakistan', 'pakistani', 'bangladesh', 'bangladeshi',
+  'sri lanka', 'sri lankan', 'nepal', 'nepali',
+  'london', 'oxford', 'cambridge', 'edinburgh', 'manchester', 'glasgow',
+  'dublin', 'belfast',
+  'new york', 'nyc', 'san francisco', 'bay area', 'sf bay',
+  'los angeles', 'chicago', 'boston', 'seattle', 'austin', 'washington dc',
+  'toronto', 'vancouver', 'montreal', 'ottawa', 'calgary',
+  'sydney', 'melbourne', 'brisbane', 'perth', 'auckland', 'wellington',
+  'berlin', 'munich', 'hamburg', 'frankfurt',
+  'paris', 'lyon', 'amsterdam', 'rotterdam', 'brussels',
+  'zurich', 'geneva', 'vienna', 'prague', 'warsaw', 'stockholm', 'oslo',
+  'copenhagen', 'helsinki', 'lisbon', 'madrid', 'barcelona',
+  'rome', 'milan', 'athens', 'budapest', 'moscow', 'kyiv', 'kiev',
+  'tokyo', 'osaka', 'kyoto', 'seoul', 'beijing', 'shanghai', 'shenzhen',
+  'hong kong', 'taipei', 'bangkok', 'jakarta', 'manila',
+  'kuala lumpur', 'ho chi minh', 'hanoi',
+  'dubai', 'abu dhabi', 'doha', 'riyadh', 'tel aviv', 'jerusalem',
+  'lagos', 'nairobi', 'cape town', 'johannesburg',
+  'sao paulo', 'rio de janeiro', 'buenos aires', 'mexico city',
+  'lahore', 'karachi', 'islamabad', 'dhaka', 'colombo', 'kathmandu',
+  'europe', 'european', 'north america', 'latin america',
+  'middle east', 'east asia', 'southeast asia', 'south east asia',
+  'africa', 'african', 'oceania'
+]
+
+const NON_INDIA_PLACE_REGEX = new RegExp(
+  '\\b(' + NON_INDIA_PLACES.map(p => p.replace(/[.\\]/g, '\\$&')).join('|') + ')\\b',
+  'i'
+)
+
+function titleMentionsNonIndiaPlace(title) {
+  if (!title) return false
+  return NON_INDIA_PLACE_REGEX.test(title)
+}
+
 export async function GET() {
   try {
     const res = await fetch('https://www.lesswrong.com/graphql', {
@@ -24,17 +85,19 @@ export async function GET() {
 
     const data = await res.json()
 
-    const indiaCities = [
-      'india', 'bangalore', 'bengaluru', 'mumbai', 'delhi',
-      'hyderabad', 'chennai', 'pune', 'kolkata', 'ahmedabad',
-      'goa', 'jaipur', 'kochi', 'lucknow', 'chandigarh'
-    ]
-
+    const rejectedIds = []
     const posts = data.data.posts.results.filter(post => {
-      if (post.onlineEvent) return true
-      if (!post.location) return false
-      const loc = post.location.toLowerCase()
-      return indiaCities.some(city => loc.includes(city))
+      let keep
+      if (post.onlineEvent) {
+        keep = !titleMentionsNonIndiaPlace(post.title)
+      } else if (post.location) {
+        const loc = post.location.toLowerCase()
+        keep = INDIA_CITIES.some(city => loc.includes(city))
+      } else {
+        keep = false
+      }
+      if (!keep && post._id) rejectedIds.push(post._id)
+      return keep
     })
 
     const events = posts.map(post => {
@@ -58,13 +121,30 @@ export async function GET() {
       }
     })
 
-    const { data: result, error } = await supabase
-      .from('events')
-      .upsert(events, { onConflict: 'source,source_id' })
+    if (events.length > 0) {
+      const { error } = await supabase
+        .from('events')
+        .upsert(events, { onConflict: 'source,source_id' })
 
-    if (error) throw error
+      if (error) throw error
+    }
 
-    return Response.json({ success: true, count: events.length })
+    let pruned = 0
+    if (rejectedIds.length > 0) {
+      const { error: pruneError, count } = await supabase
+        .from('events')
+        .delete({ count: 'exact' })
+        .eq('source', 'lesswrong')
+        .in('source_id', rejectedIds)
+
+      if (pruneError) {
+        console.error('[fetch-lesswrong] prune error:', pruneError.message)
+      } else {
+        pruned = count ?? 0
+      }
+    }
+
+    return Response.json({ success: true, count: events.length, pruned })
 
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 })

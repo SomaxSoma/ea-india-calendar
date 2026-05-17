@@ -17,14 +17,77 @@ const INDIA_CITIES = [
   'goa', 'jaipur', 'kochi', 'lucknow', 'chandigarh',
 ]
 
+// Non-India places we screen out of online-event titles. Online organizers
+// usually omit "India" to stay inclusive, but a title that names a *different*
+// country/city is almost always region-specific to that place.
+const NON_INDIA_PLACES = [
+  // countries
+  'canada', 'usa', 'u.s.a.', 'u.s.', 'america', 'american',
+  'uk', 'u.k.', 'britain', 'british', 'england', 'scotland', 'wales',
+  'united states', 'united kingdom',
+  'australia', 'australian', 'new zealand',
+  'germany', 'german', 'france', 'french', 'spain', 'spanish',
+  'italy', 'italian', 'netherlands', 'dutch', 'belgium', 'belgian',
+  'switzerland', 'swiss', 'austria', 'austrian', 'ireland', 'irish',
+  'portugal', 'portuguese', 'sweden', 'swedish', 'norway', 'norwegian',
+  'denmark', 'danish', 'finland', 'finnish', 'poland', 'polish',
+  'czech', 'hungary', 'hungarian', 'greece', 'greek',
+  'russia', 'russian', 'ukraine', 'ukrainian',
+  'china', 'chinese', 'japan', 'japanese', 'korea', 'korean',
+  'taiwan', 'taiwanese', 'singapore', 'singaporean',
+  'philippines', 'filipino', 'indonesia', 'indonesian',
+  'thailand', 'thai', 'vietnam', 'vietnamese', 'malaysia', 'malaysian',
+  'brazil', 'brazilian', 'mexico', 'mexican', 'argentina', 'argentinian',
+  'chile', 'chilean', 'colombia', 'colombian', 'peru', 'peruvian',
+  'south africa', 'south african', 'nigeria', 'nigerian', 'kenya', 'kenyan',
+  'egypt', 'egyptian', 'israel', 'israeli', 'turkey', 'turkish',
+  'iran', 'iranian', 'pakistan', 'pakistani', 'bangladesh', 'bangladeshi',
+  'sri lanka', 'sri lankan', 'nepal', 'nepali',
+  // cities
+  'london', 'oxford', 'cambridge', 'edinburgh', 'manchester', 'glasgow',
+  'dublin', 'belfast',
+  'new york', 'nyc', 'san francisco', 'bay area', 'sf bay',
+  'los angeles', 'chicago', 'boston', 'seattle', 'austin', 'washington dc',
+  'toronto', 'vancouver', 'montreal', 'ottawa', 'calgary',
+  'sydney', 'melbourne', 'brisbane', 'perth', 'auckland', 'wellington',
+  'berlin', 'munich', 'hamburg', 'frankfurt',
+  'paris', 'lyon', 'amsterdam', 'rotterdam', 'brussels',
+  'zurich', 'geneva', 'vienna', 'prague', 'warsaw', 'stockholm', 'oslo',
+  'copenhagen', 'helsinki', 'lisbon', 'madrid', 'barcelona',
+  'rome', 'milan', 'athens', 'budapest', 'moscow', 'kyiv', 'kiev',
+  'tokyo', 'osaka', 'kyoto', 'seoul', 'beijing', 'shanghai', 'shenzhen',
+  'hong kong', 'taipei', 'bangkok', 'jakarta', 'manila',
+  'kuala lumpur', 'ho chi minh', 'hanoi',
+  'dubai', 'abu dhabi', 'doha', 'riyadh', 'tel aviv', 'jerusalem',
+  'lagos', 'nairobi', 'cape town', 'johannesburg',
+  'sao paulo', 'rio de janeiro', 'buenos aires', 'mexico city',
+  'lahore', 'karachi', 'islamabad', 'dhaka', 'colombo', 'kathmandu',
+  // regions
+  'europe', 'european', 'north america', 'latin america',
+  'middle east', 'east asia', 'southeast asia', 'south east asia',
+  'africa', 'african', 'oceania',
+]
+
+const NON_INDIA_PLACE_REGEX = new RegExp(
+  '\\b(' + NON_INDIA_PLACES.map((p) => p.replace(/[.\\]/g, '\\$&')).join('|') + ')\\b',
+  'i'
+)
+
 function isVirtual(locType) {
   const t = (locType || '').toLowerCase()
   return t.includes('online') || t.includes('zoom') || t.includes('virtual') || t.includes('remote')
 }
 
+function titleMentionsNonIndiaPlace(title) {
+  if (!title) return false
+  return NON_INDIA_PLACE_REGEX.test(title)
+}
+
 function passesIndiaOrOnlineFilter(item) {
   const event = item.event ?? {}
-  if (isVirtual(event.location_type)) return true
+  if (isVirtual(event.location_type)) {
+    return !titleMentionsNonIndiaPlace(event.name)
+  }
 
   const g = event.geo_address_info ?? {}
   const haystack = [
@@ -110,14 +173,19 @@ async function fetchCalendar(url) {
 
 export async function GET() {
   const allEvents = []
+  const rejectedIds = []
   const errors = []
 
   for (const url of LUMA_URLS) {
     try {
       const items = await fetchCalendar(url)
       for (const item of items) {
-        if (!item?.event?.api_id) continue
-        if (!passesIndiaOrOnlineFilter(item)) continue
+        const apiId = item?.event?.api_id
+        if (!apiId) continue
+        if (!passesIndiaOrOnlineFilter(item)) {
+          rejectedIds.push(apiId)
+          continue
+        }
         allEvents.push(transformItem(item))
       }
     } catch (err) {
@@ -126,23 +194,40 @@ export async function GET() {
     }
   }
 
-  if (allEvents.length === 0) {
+  if (allEvents.length === 0 && rejectedIds.length === 0) {
     return Response.json(
       { success: false, count: 0, errors },
       { status: errors.length ? 502 : 200 }
     )
   }
 
-  const { error } = await supabase
-    .from('events')
-    .upsert(allEvents, { onConflict: 'source,source_id' })
+  if (allEvents.length > 0) {
+    const { error } = await supabase
+      .from('events')
+      .upsert(allEvents, { onConflict: 'source,source_id' })
 
-  if (error) {
-    return Response.json(
-      { success: false, error: error.message, errors },
-      { status: 500 }
-    )
+    if (error) {
+      return Response.json(
+        { success: false, error: error.message, errors },
+        { status: 500 }
+      )
+    }
   }
 
-  return Response.json({ success: true, count: allEvents.length, errors })
+  let pruned = 0
+  if (rejectedIds.length > 0) {
+    const { error: pruneError, count } = await supabase
+      .from('events')
+      .delete({ count: 'exact' })
+      .eq('source', 'luma')
+      .in('source_id', rejectedIds)
+
+    if (pruneError) {
+      console.error('[fetch-luma] prune error:', pruneError.message)
+    } else {
+      pruned = count ?? 0
+    }
+  }
+
+  return Response.json({ success: true, count: allEvents.length, pruned, errors })
 }
