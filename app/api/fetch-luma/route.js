@@ -1,5 +1,11 @@
 import { supabase } from '../../../lib/supabase'
 
+// Supports two URL shapes:
+//   - calendar pages: https://luma.com/<calendar-slug>  (e.g. bluedotevents, iaae)
+//   - individual event pages: https://luma.com/<event-slug>  (e.g. sd2iu7kc)
+// User-profile URLs (luma.com/user/<slug>) do not expose an event listing in
+// their HTML; they will fetch but yield zero events. Replace them with the
+// host's calendar page or specific event URLs.
 const LUMA_URLS = [
   'https://luma.com/user/portal',
   'https://luma.com/user/vyakart',
@@ -7,6 +13,7 @@ const LUMA_URLS = [
   'https://luma.com/user/electricsheep',
   'https://luma.com/iaae',
   'https://luma.com/user/eaindiatalks',
+  'https://luma.com/sd2iu7kc',
 ]
 
 const NEXT_DATA_RE = /<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/
@@ -131,14 +138,23 @@ function buildLocation(item) {
   return out
 }
 
+function sourceLabel(item) {
+  const calendar = item.calendar ?? {}
+  const hosts = item.hosts ?? []
+  // Single-event URLs from users without a public calendar fall back to a
+  // "Personal" calendar, which reads as "Via Personal on Luma". Prefer the
+  // host's name in that case so the attribution makes sense.
+  if (calendar.is_personal && hosts[0]?.name) return hosts[0].name
+  return calendar.name ?? 'Luma'
+}
+
 function transformItem(item) {
   const event = item.event ?? {}
-  const calendar = item.calendar ?? {}
   return {
     source: 'luma',
     source_id: event.api_id,
     title: event.name,
-    description: `Via ${calendar.name ?? 'Luma'} on Luma`,
+    description: `Via ${sourceLabel(item)} on Luma`,
     link: `https://luma.com/${event.url}`,
     start_date: event.start_at,
     end_date: event.end_at ?? null,
@@ -150,7 +166,7 @@ function transformItem(item) {
   }
 }
 
-async function fetchCalendar(url) {
+async function fetchSource(url) {
   const res = await fetch(url, {
     headers: {
       'User-Agent':
@@ -164,11 +180,15 @@ async function fetchCalendar(url) {
   const nextData = extractNextData(html)
   if (!nextData) throw new Error(`__NEXT_DATA__ not found for ${url}`)
 
-  const items = nextData?.props?.pageProps?.initialData?.data?.featured_items
-  if (!Array.isArray(items)) {
-    throw new Error(`featured_items missing for ${url}`)
+  const d = nextData?.props?.pageProps?.initialData?.data
+
+  if (Array.isArray(d?.featured_items)) {
+    return d.featured_items
   }
-  return items
+  if (d?.event) {
+    return [{ event: d.event, calendar: d.calendar ?? null, hosts: d.hosts ?? null }]
+  }
+  throw new Error(`Unsupported Luma page (no calendar listing or event data) for ${url}`)
 }
 
 export async function GET() {
@@ -178,7 +198,7 @@ export async function GET() {
 
   for (const url of LUMA_URLS) {
     try {
-      const items = await fetchCalendar(url)
+      const items = await fetchSource(url)
       for (const item of items) {
         const apiId = item?.event?.api_id
         if (!apiId) continue
