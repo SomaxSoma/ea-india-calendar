@@ -76,8 +76,9 @@ function cleanedDescription(event) {
 }
 
 export default function EventsPage() {
-  const [events, setEvents]   = useState([])
-  const [loading, setLoading] = useState(true)
+  const [view, setView] = useState('upcoming')
+  const [upcomingEvents, setUpcomingEvents] = useState(null)
+  const [pastEvents, setPastEvents]         = useState(null)
   const [error, setError]     = useState(null)
   const [typeFilter, setTypeFilter] = useState('all')
   const [modeFilter, setModeFilter] = useState('all')
@@ -86,22 +87,37 @@ export default function EventsPage() {
     let cancelled = false
     async function load() {
       const todayISO = new Date().toISOString().slice(0, 10)
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('status', 'approved')
-        .gte('start_date', todayISO)
-        .order('start_date', { ascending: true })
-      if (cancelled) return
-      if (error) setError(error.message)
-      else setEvents(data || [])
-      setLoading(false)
+      if (view === 'upcoming' && upcomingEvents === null) {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('status', 'approved')
+          .gte('start_date', todayISO)
+          .order('start_date', { ascending: true })
+        if (cancelled) return
+        if (error) setError(error.message)
+        else setUpcomingEvents(data || [])
+      } else if (view === 'past' && pastEvents === null) {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('status', 'approved')
+          .lt('start_date', todayISO)
+          .order('start_date', { ascending: false })
+        if (cancelled) return
+        if (error) setError(error.message)
+        else setPastEvents(data || [])
+      }
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [view, upcomingEvents, pastEvents])
+
+  const events = view === 'upcoming' ? upcomingEvents : pastEvents
+  const loading = events === null
 
   const filtered = useMemo(() => {
+    if (!events) return []
     return events.filter((e) => {
       if (typeFilter !== 'all' && normalizeType(e.type) !== typeFilter) return false
       if (modeFilter === 'online'    && !isOnline(e.location)) return false
@@ -111,6 +127,7 @@ export default function EventsPage() {
   }, [events, typeFilter, modeFilter])
 
   const sources = useMemo(() => {
+    if (!events) return []
     const set = new Set()
     for (const e of events) {
       const label = extractSourceLabel(e)
@@ -185,6 +202,33 @@ export default function EventsPage() {
         )}
       </section>
 
+      {/* TABS */}
+      <section className="max-w-5xl mx-auto px-5 sm:px-8 pb-5">
+        <div role="tablist" aria-label="Event timeframe" className="inline-flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-full shadow-sm">
+          {[
+            { value: 'upcoming', label: 'Upcoming' },
+            { value: 'past',     label: 'Past events' },
+          ].map((tab) => {
+            const active = view === tab.value
+            return (
+              <button
+                key={tab.value}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setView(tab.value)}
+                className={[
+                  'px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors whitespace-nowrap',
+                  active ? 'text-white' : 'text-slate-600 hover:text-slate-900',
+                ].join(' ')}
+                style={active ? { backgroundColor: TEAL } : undefined}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
       {/* FILTERS */}
       <section className="max-w-5xl mx-auto px-5 sm:px-8 pb-8">
         <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -217,14 +261,18 @@ export default function EventsPage() {
         {!loading && !error && grouped.length === 0 && (
           <div className="bg-white border border-slate-200 rounded-2xl py-16 text-center shadow-sm">
             <p className="text-xs font-semibold tracking-wider uppercase mb-3" style={{ color: TEAL }}>
-              Nothing scheduled
+              {view === 'past' ? 'No past events' : 'Nothing scheduled'}
             </p>
             <p className="text-slate-700 text-lg font-medium">
-              No events match these filters — yet.
+              {view === 'past'
+                ? 'No past events match these filters.'
+                : 'No events match these filters — yet.'}
             </p>
-            <p className="text-slate-500 text-sm mt-2">
-              Know of one? <Link href="/submit" className="underline" style={{ color: TEAL }}>Submit it here</Link>.
-            </p>
+            {view !== 'past' && (
+              <p className="text-slate-500 text-sm mt-2">
+                Know of one? <Link href="/submit" className="underline" style={{ color: TEAL }}>Submit it here</Link>.
+              </p>
+            )}
           </div>
         )}
 

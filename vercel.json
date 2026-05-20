@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/fetch-luma",      "schedule": "0 6 * * *" },
+    { "path": "/api/fetch-lesswrong", "schedule": "10 6 * * *" }
+  ]
+}
