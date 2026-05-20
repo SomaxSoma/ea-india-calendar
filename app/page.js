@@ -58,6 +58,23 @@ function isOnline(locations) {
   return locations.some((l) => /online|virtual|remote|zoom/i.test(l))
 }
 
+const LUMA_ATTRIBUTION_RE = /^Via (.+) on Luma$/
+
+function extractSourceLabel(event) {
+  if (event.source === 'luma' && typeof event.description === 'string') {
+    const m = event.description.match(LUMA_ATTRIBUTION_RE)
+    if (m) return `${m[1]} (Luma)`
+  }
+  if (event.source === 'lesswrong') return 'LessWrong'
+  return null
+}
+
+function cleanedDescription(event) {
+  if (!event.description) return null
+  if (LUMA_ATTRIBUTION_RE.test(event.description)) return null
+  return event.description
+}
+
 export default function EventsPage() {
   const [events, setEvents]   = useState([])
   const [loading, setLoading] = useState(true)
@@ -92,6 +109,15 @@ export default function EventsPage() {
       return true
     })
   }, [events, typeFilter, modeFilter])
+
+  const sources = useMemo(() => {
+    const set = new Set()
+    for (const e of events) {
+      const label = extractSourceLabel(e)
+      if (label) set.add(label)
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [events])
 
   const grouped = useMemo(() => {
     const groups = []
@@ -151,6 +177,12 @@ export default function EventsPage() {
         <p className="mt-5 sm:mt-6 max-w-2xl text-slate-600 text-base sm:text-lg leading-relaxed">
           Upcoming AI safety and effective altruism events — in India and online. Meetups, bootcamps, courses, and more.
         </p>
+        {sources.length > 0 && (
+          <p className="mt-5 text-[13px] text-slate-500">
+            <span className="font-semibold uppercase tracking-wider text-slate-400 text-[11px] mr-2">Sourced from</span>
+            {sources.join(' · ')}
+          </p>
+        )}
       </section>
 
       {/* FILTERS */}
@@ -269,6 +301,7 @@ function EventCard({ event }) {
   const start = new Date(event.start_date)
   const hasLink = Boolean(event.link)
   const locations = Array.isArray(event.location) ? event.location.filter(Boolean) : []
+  const description = cleanedDescription(event)
 
   const correctionHref = `/suggest-correction?event_id=${encodeURIComponent(event.id)}`
 
@@ -316,9 +349,9 @@ function EventCard({ event }) {
             </h3>
           )}
 
-          {event.description && (
+          {description && (
             <p className="mt-2 text-slate-600 text-[14.5px] leading-relaxed line-clamp-3">
-              {event.description}
+              {description}
             </p>
           )}
 
